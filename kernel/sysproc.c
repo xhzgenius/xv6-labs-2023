@@ -55,6 +55,8 @@ sys_sleep(void)
   uint ticks0;
 
   argint(0, &n);
+  if(n < 0)
+    n = 0;
   acquire(&tickslock);
   ticks0 = ticks;
   while(ticks - ticks0 < n){

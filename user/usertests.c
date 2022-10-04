@@ -76,7 +76,7 @@ copyin(char *s)
 void
 copyout(char *s)
 {
-  uint64 addrs[] = { 0x80000000LL, 0xffffffffffffffff };
+  uint64 addrs[] = { 0LL, 0x80000000LL, 0xffffffffffffffff };
 
   for(int ai = 0; ai < 2; ai++){
     uint64 addr = addrs[ai];
@@ -2821,7 +2821,7 @@ diskfull(char *s)
 
   unlink("diskfulldir");
   
-  for(fi = 0; done == 0; fi++){
+  for(fi = 0; done == 0 && '0' + fi < 0177; fi++){
     char name[32];
     name[0] = 'b';
     name[1] = 'i';
@@ -2882,7 +2882,7 @@ diskfull(char *s)
     unlink(name);
   }
 
-  for(int i = 0; i < fi; i++){
+  for(int i = 0; '0' + i < 0177; i++){
     char name[32];
     name[0] = 'b';
     name[1] = 'i';
@@ -2965,12 +2965,14 @@ run(void f(char *), char *s) {
 }
 
 int
-runtests(struct test *tests, char *justone) {
+runtests(struct test *tests, char *justone, int continuous) {
   for (struct test *t = tests; t->s != 0; t++) {
     if((justone == 0) || strcmp(t->s, justone) == 0) {
       if(!run(t->f, t->s)){
-        printf("SOME TESTS FAILED\n");
-        return 1;
+        if(continuous != 2){
+          printf("SOME TESTS FAILED\n");
+          return 1;
+        }
       }
     }
   }
@@ -3050,7 +3052,7 @@ drivetests(int quick, int continuous, char *justone) {
     printf("usertests starting\n");
     int free0 = countfree();
     int free1 = 0;
-    if (runtests(quicktests, justone)) {
+    if (runtests(quicktests, justone, continuous)) {
       if(continuous != 2) {
         return 1;
       }
@@ -3058,7 +3060,7 @@ drivetests(int quick, int continuous, char *justone) {
     if(!quick) {
       if (justone == 0)
         printf("usertests slow tests starting\n");
-      if (runtests(slowtests, justone)) {
+      if (runtests(slowtests, justone, continuous)) {
         if(continuous != 2) {
           return 1;
         }

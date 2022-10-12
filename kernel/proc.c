@@ -523,8 +523,11 @@ forkret(void)
     // File system initialization must be run in the context of a
     // regular process (e.g., because it calls sleep), and thus cannot
     // be run from main().
-    first = 0;
     fsinit(ROOTDEV);
+
+    first = 0;
+    // ensure other cores see first=0.
+    __sync_synchronize();
   }
 
   usertrapret();

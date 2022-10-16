@@ -446,12 +446,13 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
+
+  // Interrupts are disabled at first, but they must be
+  // enabled in order for the shell to get input.
+  intr_on();
   
   c->proc = 0;
   for(;;){
-    // Avoid deadlock by ensuring that devices can interrupt.
-    intr_on();
-
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {

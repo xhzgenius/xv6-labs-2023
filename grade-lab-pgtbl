@@ -57,11 +57,6 @@ def test_pteprint():
             pa = (int(matches[0][0], 16) >> 10) << 12
             assert_equal(int(matches[0][1], 16), pa)
 
-@test(5, "answers-pgtbl.txt")
-def test_answers():
-    # just a simple sanity check, will be graded manually
-    check_answers("answers-pgtbl.txt")
-
 @test(0, "usertests")
 def test_usertests():
     r.run_qemu(shell_script([

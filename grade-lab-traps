@@ -7,6 +7,11 @@ from gradelib import *
 
 r = Runner(save("xv6.out"))
 
+@test(5, "answers-traps.txt")
+def test_answers():
+    # just a simple sanity check, will be graded manually
+    check_answers("answers-traps.txt")
+
 BACKTRACE_RE = r"^(0x000000008[0-9a-f]+)"
 
 def addr2line():

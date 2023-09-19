@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-import sys, os, re, time, socket, select, subprocess, errno, shutil, random, string
+import sys, os, re, time, socket, select, subprocess, errno, shutil, random, string, json
 from subprocess import check_call, Popen
 from optparse import OptionParser
 
@@ -16,6 +16,7 @@ TESTS = []
 TOTAL = POSSIBLE = 0
 PART_TOTAL = PART_POSSIBLE = 0
 CURRENT_TEST = None
+GRADES = {}
 
 def test(points, title=None, parent=None):
     """Decorator for declaring test functions.  If title is None, the
@@ -31,7 +32,7 @@ def test(points, title=None, parent=None):
             title = "  " + title
 
         def run_test():
-            global TOTAL, POSSIBLE, CURRENT_TEST
+            global TOTAL, POSSIBLE, CURRENT_TEST, GRADES
 
             # Handle test dependencies
             if run_test.complete:
@@ -68,6 +69,9 @@ def test(points, title=None, parent=None):
                 print("    %s" % fail.replace("\n", "\n    "))
             else:
                 TOTAL += points
+            if points:
+                GRADES[title] = 0 if fail else points
+
             for callback in run_test.on_finish:
                 callback(fail)
             CURRENT_TEST = None
@@ -95,6 +99,16 @@ def end_part(name):
     show_part.title = ""
     TESTS.append(show_part)
 
+def write_results():
+    global options
+    if not options.results:
+        return
+    try:
+        with open(options.results, "w") as f:
+            f.write(json.dumps(GRADES))
+    except OSError as e:
+        print("Provided a bad results path. Error:", e)
+
 def run_tests():
     """Set up for testing and run the registered test functions."""
 
@@ -105,6 +119,7 @@ def run_tests():
                       help="print commands")
     parser.add_option("--color", choices=["never", "always", "auto"],
                       default="auto", help="never, always, or auto")
+    parser.add_option("--results", help="results file path")
     (options, args) = parser.parse_args()
 
     # Start with a full build to catch build errors
@@ -120,6 +135,7 @@ def run_tests():
             if not limit or any(l in test.title.lower() for l in limit):
                 test()
         if not limit:
+            write_results()
             print("Score: %d/%d" % (TOTAL, POSSIBLE))
     except KeyboardInterrupt:
         pass
@@ -260,6 +276,7 @@ def check_time():
 
 def check_answers(file, n=10):
     try:
+        print("")
         with open(file) as f:
             d = f.read().strip()
             if len(d) < n:

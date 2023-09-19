@@ -15,8 +15,7 @@ mkfs
 kernel/kernel
 user/usys.S
 .gdbinit
-myapi.key
-*-handin.tar.gz
+*.zip
 xv6.out*
 .vagrant/
 submissions/

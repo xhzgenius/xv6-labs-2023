@@ -23,10 +23,8 @@ void
 thread_init(void)
 {
   // main() is thread 0, which will make the first invocation to
-  // thread_schedule().  it needs a stack so that the first thread_switch() can
-  // save thread 0's state.  thread_schedule() won't run the main thread ever
-  // again, because its state is set to RUNNING, and thread_schedule() selects
-  // a RUNNABLE thread.
+  // thread_schedule(). It needs a stack so that the first thread_switch() can
+  // save thread 0's state.
   current_thread = &all_thread[0];
   current_thread->state = RUNNING;
 }
@@ -157,6 +155,7 @@ main(int argc, char *argv[])
   thread_create(thread_a);
   thread_create(thread_b);
   thread_create(thread_c);
+  current_thread->state = FREE;
   thread_schedule();
   exit(0);
 }

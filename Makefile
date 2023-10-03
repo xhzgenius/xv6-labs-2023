@@ -266,10 +266,11 @@ fs.img: mkfs/mkfs README $(UEXTRA) $(UPROGS)
 -include kernel/*.d user/*.d
 
 clean:
-	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg *.dSYM *.zip \
+	rm -rf *.tex *.dvi *.idx *.aux *.log *.ind *.ilg *.dSYM *.zip \
 	*/*.o */*.d */*.asm */*.sym \
-	$U/initcode $U/initcode.out $K/kernel $U/usys.S \
-	mkfs/mkfs fs.img .gdbinit \
+	$U/initcode $U/initcode.out $U/usys.S $U/_* \
+	$K/kernel \
+	mkfs/mkfs fs.img .gdbinit __pycache__ xv6.out* \
 	$(UPROGS) \
 	ph barrier
 

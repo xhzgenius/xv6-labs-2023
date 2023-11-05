@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "fcntl.h": "c",
+        "param.h": "c"
+    }
+}

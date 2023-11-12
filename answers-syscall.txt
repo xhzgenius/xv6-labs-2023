@@ -1,0 +1,34 @@
+Answered by XHZ, all rights reserved. 
+
+1. 查看回溯输出，哪个函数调用了syscall？
+    usertrap ()函数调用了syscall。详细信息：0x0000000080001d70 in usertrap () at kernel/trap.c:67
+
+2. p->trapframe->a7 的值是多少？该值代表什么？（提示：查看user/initcode.S，第一个用户程序 xv6 启动。）
+    在gdb中输入p /x *p->trapframe，可以看到a7 = 0x7。代表系统调用编号。
+
+3. CPU 之前所处的模式是什么？
+    user mode
+
+4. 写下内核恐慌的汇编指令。哪个寄存器对应于变量num？
+    // num = p->trapframe->a7;
+    num = * (int *) 0; // For error test. 
+        80002050:	00002683          	lw	a3,0(zero) # 0 <_entry-0x80000000>
+    以上为造成kernel panic的汇编指令。寄存器a3对应于变量num。
+
+5. 为什么内核会崩溃？提示：看文中图3-3；地址0是否映射到内核地址空间？上述原因中的值是否证实了这一点？（参见RISC-V特权指令中的原因描述）
+    scause 0x000000000000000d
+    查询riscv-privileged-20211203.pdf可知，interrupt bit（最高位）为0时，exception code为13对应Load page fault。
+    原因是地址0未映射到内核地址空间。
+
+6. 内核崩溃时运行的二进制文件的名称是什么？它的进程 ID ( pid )是什么？
+    (gdb) p p->name
+    $3 = "initcode\000\000\000\000\000\000\000"
+    其名称为initcode。
+    $4 = {lock = {locked = 0, name = 0x800081b8 "proc", cpu = 0x0}, state = RUNNING, chan = 0x0, killed = 0, xstate = 0, pid = 1,
+    parent = 0x0, kstack = 274877894656, sz = 4096, pagetable = 0x87f73000, trapframe = 0x87f74000, context = {ra = 2147488962,
+    sp = 274877898368, s0 = 274877898416, s1 = 2147519856, s2 = 2147518784, s3 = 1, s4 = 0, s5 = 3, s6 = 2147588624, s7 = 8,
+    s8 = 2147588920, s9 = 4, s10 = 1, s11 = 0}, ofile = {0x0 <repeats 16 times>}, cwd = 0x80016e80 <itable+24>,
+    name = "initcode\000\000\000\000\000\000\000"}
+    其PID为1。
+
+Answered by XHZ, all rights reserved. 

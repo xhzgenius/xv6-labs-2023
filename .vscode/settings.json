@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "sysinfo.h": "c",
+        "*.d": "c"
+    }
+}

@@ -310,6 +310,9 @@ fork(void)
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
+  // Added by XHZ. Copy the trace_mask. 
+  np->trace_mask = p->trace_mask;
+
   pid = np->pid;
 
   release(&np->lock);
@@ -685,4 +688,16 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+// Added by XHZ. 
+// Counts the number of processes whose state is not UNUSED. 
+uint64 count_procs(void)
+{
+  uint64 ans = 0;
+  for(int i = 0;i<NPROC;i++)
+  {
+    if(proc[i].state!=UNUSED) ans++;
+  }
+  return ans;
 }

@@ -80,3 +80,16 @@ kalloc(void)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
 }
+
+// Added by XHZ. 
+uint64 count_freemem(void)
+{
+  struct run *current = kmem.freelist;
+  uint64 ans = 0;
+  while(current)
+  {
+    ans += 4096;
+    current = current->next;
+  }
+  return ans;
+}

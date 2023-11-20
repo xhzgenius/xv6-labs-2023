@@ -70,14 +70,37 @@ sys_sleep(void)
 }
 
 
-#ifdef LAB_PGTBL
+// #ifdef LAB_PGTBL
 int
-sys_pgaccess(void)
+sys_pgaccess()
 {
   // lab pgtbl: your code here.
+  // Added by XHZ
+  uint64 start_va;
+  argaddr(0, &start_va);
+  int page_num;
+  argint(1, &page_num);
+  uint64 dst_ptr;
+  argaddr(2, &dst_ptr);
+  uint64 buffer = 0; // Temporarily store here
+  pagetable_t pagetable = myproc()->pagetable;
+
+  for(int i = 0;i<page_num;i++)
+  {
+    pte_t *pte_ptr = walk(pagetable, start_va+i*PGSIZE, page_num);
+    int is_accessed = (*pte_ptr & PTE_A);
+    if(is_accessed)
+    {
+      buffer |= (1<<i);
+      *pte_ptr ^= PTE_A;
+    }
+  }
+  printf("Accessed pages buffer: %p\n", buffer);
+  copyout(pagetable, dst_ptr, (char *)(&buffer), sizeof(buffer));
+
   return 0;
 }
-#endif
+// #endif
 
 uint64
 sys_kill(void)

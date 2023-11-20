@@ -192,7 +192,7 @@ proc_pagetable(struct proc *p)
     uvmfree(pagetable, 0);
     return 0;
   }
-  printf("Fuck! Succeeded to map the trampoline page. Kernel address: %p; Page table VA: %p\n", trampoline, TRAMPOLINE);
+  // printf("Fuck! Succeeded to map the trampoline page. Kernel address: %p; Page table VA: %p\n", trampoline, TRAMPOLINE);
 
   // map the trapframe page just below the trampoline page, for
   // trampoline.S.
@@ -202,7 +202,7 @@ proc_pagetable(struct proc *p)
     uvmfree(pagetable, 0);
     return 0;
   }
-  printf("Fuck! Succeeded to map the trapframe page. Kernel address: %p; Page table VA: %p\n", p->trapframe, TRAPFRAME);
+  // printf("Fuck! Succeeded to map the trapframe page. Kernel address: %p; Page table VA: %p\n", p->trapframe, TRAPFRAME);
 
   // Added by XHZ
   // As required, we should map one extra page (read-only) when initializing a process. 
@@ -213,7 +213,7 @@ proc_pagetable(struct proc *p)
      mappages(pagetable, USYSCALL, PGSIZE, 
               usyscall_page_ka, PTE_R | PTE_U) < 0) // Unable to map the page
   {
-    printf("Fuck! Unable to map the page\n");
+    // printf("Fuck! Unable to map the page\n");
     uvmunmap(pagetable, TRAPFRAME, 1, 0);
     uvmunmap(pagetable, TRAMPOLINE, 1, 0);
     uvmfree(pagetable, 0);
@@ -221,11 +221,11 @@ proc_pagetable(struct proc *p)
   }
   else // Succeed. Init the information in the page. 
   {
-    printf("Fuck! Succeeded to map the page. Kernel address: %p; Page table VA: %p\n", usyscall_page_ka, USYSCALL);
+    // printf("Fuck! Succeeded to map the page. Kernel address: %p; Page table VA: %p\n", usyscall_page_ka, USYSCALL);
     ((struct usyscall *)usyscall_page_ka)->pid = p->pid; // Use usyscall_page_ka! 
     // The only addresses that can be directly used in kernel, are the ones returned by kalloc(). 
     // Virtual addresses are only stored in page table entries! They shall not be used directly!!! 
-    printf("Fuck! Succeeded to init the proc info\n");
+    // printf("Fuck! Succeeded to init the proc info\n");
   }
 
   return pagetable;
@@ -240,7 +240,8 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
   // Why doesn't the code above free the physical memory? 
   // This works, but doesn't it really matter? Maybe it doesn't even matter. 
-  uvmunmap(pagetable, USYSCALL, 1, 0);
+  // However, the code below MUST free physical memory! 
+  uvmunmap(pagetable, USYSCALL, 1, 1);
   uvmfree(pagetable, sz);
 }
 

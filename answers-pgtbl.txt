@@ -1,0 +1,28 @@
+1. Which other xv6 system call(s) could be made faster using this shared page? Explain how. 
+- fstat. Because it is also a read-only system call, and all the information can be stored in this page. 
+
+2. For every leaf page in the vmprint output, explain what it logically contains and what its permission bits are. 
+    Figure 3.4 in the xv6 book might be helpful, although note that the figure might have a slightly different 
+    set of pages than the init process that's being inspected here. 
+- Output: 
+- page table 0x0000000087f6b000
+   ..0: pte 0x0000000021fd9801 pa 0x0000000087f66000
+   .. ..0: pte 0x0000000021fd9401 pa 0x0000000087f65000
+   .. .. ..0: pte 0x0000000021fd9c1b pa 0x0000000087f67000
+   .. .. ..1: pte 0x0000000021fd9017 pa 0x0000000087f64000
+   .. .. ..2: pte 0x0000000021fd8c07 pa 0x0000000087f63000
+   .. .. ..3: pte 0x0000000021fd8817 pa 0x0000000087f62000
+   ..255: pte 0x0000000021fda801 pa 0x0000000087f6a000
+   .. ..511: pte 0x0000000021fda401 pa 0x0000000087f69000
+   .. .. ..509: pte 0x0000000021fda013 pa 0x0000000087f68000
+   .. .. ..510: pte 0x0000000021fdd007 pa 0x0000000087f74000
+   .. .. ..511: pte 0x0000000020001c0b pa 0x0000000080007000
+
+- The PTE 0 has permission: R X U. It is the page of ? 
+- The PTE 1 has permission: R W U. It is the page of the old stack(?) 
+- The PTE 2 has permission: R W. It is the guard page created by exec().  
+- The PTE 3 has permission: R W U. It is the user's stack created by exec(). 
+
+- The PTE 509 has permission: R U. It is the page of usyscall information. 
+- The PTE 510 has permission: R W. It is the page of trapframe. 
+- The PTE 511 has permission: R X. It is the trampoline page. 

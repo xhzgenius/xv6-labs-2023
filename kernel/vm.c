@@ -449,3 +449,26 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return -1;
   }
 }
+
+// Added by XHZ
+void vmprint(pagetable_t pagetable, int indent)
+{
+  // Just like freewalk(). 
+
+  // Print self first, if is root. 
+  if(indent==1) printf("page table %p\n", pagetable);
+
+  // Then print children. 
+  // There are 2^9 = 512 PTEs in a page table.
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    uint64 child = PTE2PA(pte);
+    if((pte & PTE_V) == 0) continue;
+    for(int ind = 0;ind<indent;ind++) printf(" ..");
+    printf("%d: pte %p pa %p\n", i, pte, child);
+    if((pte & (PTE_R|PTE_W|PTE_X)) == 0){
+      // this PTE points to a lower-level page table.
+      vmprint((pagetable_t)child, indent+1);
+    }
+  }
+}

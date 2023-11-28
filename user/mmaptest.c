@@ -232,10 +232,12 @@ mmap_test(void)
   if(memcmp(p2, "67890", 5) != 0)
     err("mmap2 mismatch");
 
-  munmap(p1, PGSIZE);
+  if (munmap(p1, PGSIZE) == -1)
+    err("munmap (5)");
   if(memcmp(p2, "67890", 5) != 0)
     err("mmap2 mismatch (2)");
-  munmap(p2, PGSIZE);
+  if (munmap(p2, PGSIZE) == -1)
+    err("munmap (6)");
   
   printf("test mmap two files: OK\n");
   
@@ -276,7 +278,8 @@ fork_test(void)
     err("fork");
   if (pid == 0) {
     _v1(p1);
-    munmap(p1, PGSIZE); // just the first page
+    if (munmap(p1, PGSIZE) == -1) // just the first page
+      err("munmap (7)");
     exit(0); // tell the parent that the mapping looks OK.
   }
 

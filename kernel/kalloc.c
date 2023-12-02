@@ -23,9 +23,13 @@ struct {
   struct run *freelist;
 } kmem;
 
+// Added by XHZ. 
+uint page_refcnt[PHYSTOP/PGSIZE]; // COW reference count. 
+
 void
 kinit()
 {
+  // memset((void *)page_refcnt, 0, sizeof(page_refcnt)); // Init COW refcnt array. 
   initlock(&kmem.lock, "kmem");
   freerange(end, (void*)PHYSTOP);
 }
@@ -46,6 +50,13 @@ freerange(void *pa_start, void *pa_end)
 void
 kfree(void *pa)
 {
+  if(page_refcnt[(uint64)pa/PGSIZE]>0)
+  {
+    page_refcnt[(uint64)pa/PGSIZE] -= 1;
+    // printf("kfree: Try to free COW page %p, now COW refcnt=%d\n", (uint64)pa/PGSIZE, page_refcnt[(uint64)pa/PGSIZE]);
+  }
+  if(page_refcnt[(uint64)pa/PGSIZE]>0) return;
+  
   struct run *r;
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
@@ -78,5 +89,6 @@ kalloc(void)
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
+  page_refcnt[(uint64)r/PGSIZE] = 1; // The refcnt is 1. 
   return (void*)r;
 }

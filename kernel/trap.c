@@ -29,6 +29,10 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
+extern uint page_refcnt[PHYSTOP/PGSIZE];
+extern char end[]; // first address after kernel.
+                   // defined by kernel.ld.
+
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
@@ -67,10 +71,64 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else {
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    setkilled(p);
+  }
+  else // Encountered a fault here. 
+  {
+    // Handle COW page writing here. --XHZ
+    if(r_scause()==15) // Store/AMO page fault
+    {
+      // printf("Encountered exception: Store/AMO page fault\n");
+      uint64 write_va = r_stval();
+      pagetable_t pagetable = myproc()->pagetable;
+      pte_t *pte = walk(pagetable, write_va, 0);
+      if(*pte & PTE_COW) // This page is a COW page
+      {
+        if(page_refcnt[PTE2PA(*pte)/PGSIZE]==1) // No need to copy page
+        {
+          *pte = (*pte & (~PTE_COW)) | PTE_W; // Give it permission to write, and mark as not COW. 
+        }
+        else // Need to copy page, because there are refs to this COW page. 
+        {
+          // Allocates memory for the new page. 
+          char *mem;
+          if((mem = kalloc()) == 0)
+          {
+            not_enough_physical_memory_error:
+            // On kalloc() error, what to do? The lab requires to kill this process. 
+            uvmunmap(pagetable, 0, 1, 1);
+            printf("Not enough physical memory when copy-on-write! pid=%d\n", p->pid);
+            setkilled(p);
+          }
+
+          // Copy the page. 
+          memmove(mem, (char*)PTE2PA(*pte), PGSIZE);
+
+          // Remap the new page to the page table. 
+          uint flags = PTE_FLAGS(*pte);
+          flags = (flags & (~PTE_COW)) | PTE_W; // Give it permission to write, and mark as not COW. 
+          uvmunmap(pagetable, PGROUNDDOWN(write_va), 1, 0); // Unmap the old COW page from the pagetable. 
+          // kfree((void *)PTE2PA(*pte));
+          if(PTE2PA(*pte)<PHYSTOP && PTE2PA(*pte)>=(uint64)end) kfree((void *)PTE2PA(*pte));
+          if(mappages(pagetable, PGROUNDDOWN(write_va), PGSIZE, (uint64)mem, flags) != 0){
+            kfree(mem);
+            printf("This should never happen! The page SHOULD exist. mappages() won't fail!!! \n");
+            goto not_enough_physical_memory_error;
+          }
+          page_refcnt[PTE2PA(*pte)/PGSIZE] -= 1;
+        }
+      }
+      else // This page is not a COW page
+      {
+        goto unexpected_scause;
+      }
+    }
+    else
+    {
+      unexpected_scause:
+      printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+      setkilled(p);
+    }
   }
 
   if(killed(p))

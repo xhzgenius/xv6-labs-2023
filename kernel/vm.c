@@ -303,6 +303,8 @@ uvmfree(pagetable_t pagetable, uint64 sz)
   freewalk(pagetable);
 }
 
+extern uint page_refcnt[PHYSTOP/PGSIZE];
+
 // Given a parent process's page table, copy
 // its memory into a child's page table.
 // Copies both the page table and the
@@ -314,8 +316,8 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
   pte_t *pte;
   uint64 pa, i;
-  uint flags;
-  char *mem;
+  // uint flags;
+  // char *mem;
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
@@ -323,14 +325,33 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
-    flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
-      goto err;
-    }
+
+    /**
+     * Now that we have COW, there's no need to copy the page. 
+     * Instead, we just: 
+     * - Map the original page to the child's page table;
+     * - In both parent's PTE and child's PTE, set the PTE_W flags to 0, and the custom PTE_COW flags to 1. 
+     *   (If originally writable! Else don't do that. )
+     */
+
+    // // Allocates memory for child's page. 
+    // if((mem = kalloc()) == 0)
+    //   goto err;
+
+    // // Copy a page. 
+    // memmove(mem, (char*)pa, PGSIZE);
+
+    // // Map the new page to the child's page table. 
+    // if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
+    //   kfree(mem);
+    //   goto err;
+    // }
+
+    // Set the parent's page's flags. 
+    if(*pte & PTE_W) *pte = (*pte ^ PTE_W) | PTE_COW; // If originally writable, then set new flags. 
+    // Map the original page to the child's page table, with the new flag. 
+    if(mappages(new, i, PGSIZE, pa, PTE_FLAGS(*pte)) != 0) goto err;
+    page_refcnt[(uint64)pa/PGSIZE] += 1;
   }
   return 0;
 

@@ -79,6 +79,7 @@ usertrap(void)
     {
       // printf("Encountered exception: Store/AMO page fault\n");
       uint64 write_va = r_stval();
+      if(write_va>=MAXVA) goto unexpected_scause; // Should not access virtual address beyond MAXVA! (In usertests)
       pagetable_t pagetable = myproc()->pagetable;
       pte_t *pte = walk(pagetable, write_va, 0);
       if(*pte & PTE_COW) // This page is a COW page

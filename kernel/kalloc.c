@@ -24,12 +24,11 @@ struct {
 } kmem;
 
 // Added by XHZ. 
-uint page_refcnt[PHYSTOP/PGSIZE]; // COW reference count. 
+volatile int page_refcnt[PHYSTOP/PGSIZE]; // COW reference count. 
 
 void
 kinit()
 {
-  // memset((void *)page_refcnt, 0, sizeof(page_refcnt)); // Init COW refcnt array. 
   initlock(&kmem.lock, "kmem");
   freerange(end, (void*)PHYSTOP);
 }

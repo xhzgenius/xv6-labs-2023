@@ -303,7 +303,7 @@ uvmfree(pagetable_t pagetable, uint64 sz)
   freewalk(pagetable);
 }
 
-extern uint page_refcnt[PHYSTOP/PGSIZE];
+extern int page_refcnt[PHYSTOP/PGSIZE];
 
 // Given a parent process's page table, copy
 // its memory into a child's page table.
@@ -352,6 +352,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     // Map the original page to the child's page table, with the new flag. 
     if(mappages(new, i, PGSIZE, pa, PTE_FLAGS(*pte)) != 0) goto err;
     page_refcnt[(uint64)pa/PGSIZE] += 1;
+    // printf("Copied a page. refcnt=%d\n", page_refcnt[(uint64)pa/PGSIZE]);
   }
   return 0;
 
@@ -387,9 +388,35 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
     if(va0 >= MAXVA)
       return -1;
     pte = walk(pagetable, va0, 0);
-    if(pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0 ||
-       (*pte & PTE_W) == 0)
+    if(pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0
+       || (((*pte & PTE_W) == 0) && ((*pte & PTE_COW) == 0))) // Neither writable nor COW. 
       return -1;
+    if((*pte & PTE_W) == 0 && (*pte & PTE_COW)) // Encountered COW page. 
+    {
+      // Same as in usertrap(). 
+      // Allocates memory for the new page. 
+      char *mem;
+      if((mem = kalloc()) == 0)
+      {
+        not_enough_physical_memory_error:
+        // On kalloc() error, what to do? The lab requires to kill this process. 
+        printf("Not enough physical memory when copy-on-write! \n");
+        return -1;
+      }
+
+      // Copy the page. 
+      memmove(mem, (char*)PTE2PA(*pte), PGSIZE);
+
+      // Remap the new page to the page table. 
+      uint flags = PTE_FLAGS(*pte);
+      flags = (flags & (~PTE_COW)) | PTE_W; // Give it permission to write, and mark as not COW. 
+      uvmunmap(pagetable, va0, 1, 1); // Unmap the old COW page from the pagetable, and kfree() it. 
+      if(mappages(pagetable, va0, PGSIZE, (uint64)mem, flags) != 0){
+        kfree(mem);
+        printf("This should never happen! The page SHOULD exist. mappages() won't fail!!! \n");
+        goto not_enough_physical_memory_error;
+      }
+    }
     pa0 = PTE2PA(*pte);
     n = PGSIZE - (dstva - va0);
     if(n > len)

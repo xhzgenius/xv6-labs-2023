@@ -3,6 +3,15 @@
 
 Lab 4: Copy on Write
 
+##### 个人经验&避坑指南：
+首先，关于usertrap函数，用uvmunmap()来删除页表项，并且用该函数自带的free功能来清除物理页，它会帮你调用你修改过的kfree。
+不要自己调用kfree，那样会让不该free的东西（比如内核之类的）导致panic。
+
+其次，copyout那里的判断条件，既不能write又不是COW的就返回-1，不能write但是是COW的就照搬usertrap那里的代码。
+
+最后，usertrap那里，需要判断访问的virtual address是否超过MAXVA，超过的话就应该主动报错并setkill。（可以直接goto已有的代码部分）
+（usertests里面的MAXVAPlus会检查这个！）
+
 ##### Hints from https://pdos.csail.mit.edu/6.828/2023/labs/cow.html:
 
 - 修改 uvmcopy() 以将父级的物理页面映射到子级，而不是分配新页面。对于设置了PTE_W的页面，清除子级和父级 PTE 中的PTE_W。(√)
@@ -27,6 +36,7 @@ Lab 4: Copy on Write
 - usertests -q探索cowtest未测试的场景，因此不要忘记检查两者的所有测试是否都通过。
 - 一些有用的宏和页表标志的定义位于kernel/riscv.h的末尾。
 - 如果发生 COW 页面错误并且没有可用内存，则应终止该进程。
+
 
 ## 以下是原README：
 

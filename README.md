@@ -1,7 +1,7 @@
-# Lab: system calls
+# Lab 1: system calls
 北京大学操作系统课程lab：XV6（2023秋季学期）
 
-Lab 1
+## 以下是原README：
 
 xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
 Version 6 (v6).  xv6 loosely follows the structure and style of v6,

@@ -1,7 +1,4 @@
-# Lab: Xv6 and Unix utilities
-北京大学操作系统课程lab：XV6（2023秋季学期）
-
-Lab 4: Copy on Write
+# Lab 5: Copy on Write
 
 ##### 个人经验&避坑指南：
 首先，关于usertrap函数，用uvmunmap()来删除页表项，并且用该函数自带的free功能来清除物理页，它会帮你调用你修改过的kfree。

@@ -10,10 +10,17 @@
 #define STACK_SIZE  8192
 #define MAX_THREAD  4
 
+// Added by XHZ. The FUCKING bug of VSCode makes me do this. 
+#ifndef uint64
+typedef unsigned long uint64;
+#endif
 
 struct thread {
   char       stack[STACK_SIZE]; /* the thread's stack */
   int        state;             /* FREE, RUNNING, RUNNABLE */
+  // Added by XHZ
+  // Registers (only callee-saved ones): ra, sp, s0-11
+  uint64 reg_ra, reg_sp, reg_s[12];
 };
 struct thread all_thread[MAX_THREAD];
 struct thread *current_thread;
@@ -32,6 +39,7 @@ thread_init(void)
 void 
 thread_schedule(void)
 {
+  // printf("Entering thread_schedule()...\n");
   struct thread *t, *next_thread;
 
   /* Find another runnable thread. */
@@ -44,7 +52,7 @@ thread_schedule(void)
       next_thread = t;
       break;
     }
-    t = t + 1;
+    t = t + 1; // Cyclized order. (comment added by XHZ)
   }
 
   if (next_thread == 0) {
@@ -60,6 +68,9 @@ thread_schedule(void)
      * Invoke thread_switch to switch from t to next_thread:
      * thread_switch(??, ??);
      */
+    // Added by XHZ
+    // printf("Entering thread_switch()...\n");
+    thread_switch((uint64)&t->reg_ra, (uint64)&next_thread->reg_ra);
   } else
     next_thread = 0;
 }
@@ -74,6 +85,13 @@ thread_create(void (*func)())
   }
   t->state = RUNNABLE;
   // YOUR CODE HERE
+  // Added by XHZ
+
+  // Set the registers' initial values
+  // Stack pointer: 
+  t->reg_sp = (uint64)t->stack+STACK_SIZE; // Is it right? 
+  // PC: 
+  t->reg_ra = (uint64)func; // When uthread_switch() returns, return address should be func. 
 }
 
 void 
@@ -152,9 +170,13 @@ main(int argc, char *argv[])
   a_started = b_started = c_started = 0;
   a_n = b_n = c_n = 0;
   thread_init();
+  printf("Thread init OK. \n");
   thread_create(thread_a);
+  printf("Thread a created. \n");
   thread_create(thread_b);
+  printf("Thread b created. \n");
   thread_create(thread_c);
+  printf("Thread c created. \n");
   current_thread->state = FREE;
   thread_schedule();
   exit(0);

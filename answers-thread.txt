@@ -1,0 +1,10 @@
+Why are there missing keys with 2 threads, but not with 1 thread? 
+Identify a sequence of events with 2 threads that can lead to a key being missing. 
+Submit your sequence with a short explanation in answers-thread.txt. 
+
+答：如果线程0正在写某个key，同时线程1也在写同一个哈希值的key，
+    那么线程0和线程1会同时往同一个链表头加入节点，
+    比如原先链表头是节点a，线程0让链表头指向节点b，b指向a，
+    线程1让链表头指向节点c，c指向a，
+    那么此时，链表中就没有b节点了。
+    因此，b对应的键就会丢失。

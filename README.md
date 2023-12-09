@@ -1,4 +1,4 @@
-# Lab 1: system calls
+# Lab 2: system calls
 北京大学操作系统课程lab：XV6（2023秋季学期）
 
 ## 以下是原README：

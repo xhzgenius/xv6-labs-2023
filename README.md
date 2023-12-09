@@ -1,6 +1,6 @@
-# Lab: traps
+# Lab 4: traps
 北京大学操作系统课程lab：XV6（2023秋季学期）
- Lab 3
+（暂未实现）
 
 ## 以下是原README：
 xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix

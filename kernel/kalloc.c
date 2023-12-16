@@ -21,12 +21,19 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
-} kmem;
+} kmems[NCPU];
 
 void
 kinit()
 {
-  initlock(&kmem.lock, "kmem");
+  for(int id = 0;id<NCPU;id++)
+  {
+    char name_buf[16] = {0};
+    snprintf(name_buf, sizeof(name_buf), "kmem_lock_%d", id);
+    printf("kmem lock name: %s\n", name_buf);
+    initlock(&kmems[id].lock, name_buf);
+  }
+  printf("kinit(): initlock() complete. \n");
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -37,6 +44,7 @@ freerange(void *pa_start, void *pa_end)
   p = (char*)PGROUNDUP((uint64)pa_start);
   for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
     kfree(p);
+  printf("freerange() at CPU %d: Complete. \n", cpuid());
 }
 
 // Free the page of physical memory pointed at by pa,
@@ -56,10 +64,11 @@ kfree(void *pa)
 
   r = (struct run*)pa;
 
-  acquire(&kmem.lock);
-  r->next = kmem.freelist;
-  kmem.freelist = r;
-  release(&kmem.lock);
+  int cpu_id = cpuid(); // DO NOT call cpuid() several times: the results may be different!!! 
+  acquire(&kmems[cpu_id].lock);
+  r->next = kmems[cpu_id].freelist;
+  kmems[cpu_id].freelist = r;
+  release(&kmems[cpu_id].lock);
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -68,15 +77,30 @@ kfree(void *pa)
 void *
 kalloc(void)
 {
+  // push_off(); // Avoid the swith of CPU
   struct run *r;
+  int cpu_id = cpuid(); // DO NOT call cpuid() several times: the results may be different!!! 
 
-  acquire(&kmem.lock);
-  r = kmem.freelist;
+  acquire(&kmems[cpu_id].lock);
+  r = kmems[cpu_id].freelist;
   if(r)
-    kmem.freelist = r->next;
-  release(&kmem.lock);
+    kmems[cpu_id].freelist = r->next;
+  release(&kmems[cpu_id].lock);
+  for(int id = 0;!r && id<NCPU;id++)
+  {
+    if(id==cpu_id) continue;
+    acquire(&kmems[id].lock);
+    r = kmems[id].freelist;
+    if(r)
+      kmems[id].freelist = r->next;
+    release(&kmems[id].lock);
+  }
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
+  else
+    printf("kalloc() at CPU %d: Cannot allocate memory. \n", cpu_id);
+  
+  // pop_off();
   return (void*)r;
 }

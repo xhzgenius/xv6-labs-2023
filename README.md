@@ -1,3 +1,10 @@
+# Lab 7: locks
+
+##### 个人提示：
+永远不要在一个函数里调用多次mycpu()，由于进程会被调度，你可能会得到多个不同的结果。如果你用mycpu()的值来acquire或者release锁，那么这两个可能不是同一把锁，从而就panic了。
+
+## 以下是原README：
+
 xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
 Version 6 (v6).  xv6 loosely follows the structure and style of v6,
 but is implemented for a modern RISC-V multiprocessor using ANSI C.

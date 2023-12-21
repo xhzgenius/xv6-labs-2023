@@ -417,6 +417,65 @@ bmap(struct inode *ip, uint bn)
     return addr;
   }
 
+  // Added by XHZ
+  bn -= NINDIRECT;
+  if(bn<NINDIRECT*NINDIRECT)
+  {
+    // printf("Searching for the double table. bn=%d\n", bn);
+
+    // First, find the first table. 
+
+    addr = ip->addrs[NDIRECT+1]; // Find the address of the first table. 
+    if(addr==0) // If no such table, allocate a block for the first table. 
+    {
+      addr = balloc(ip->dev);
+      if(addr==0) // Can't allocate block
+      {
+        return 0;
+      }
+      ip->addrs[NDIRECT+1] = addr; // Record the first table's address to the original block. 
+    }
+
+    // Then, find the second table. 
+
+    bp = bread(ip->dev, addr); // The first table's block. 
+    a = (uint* )bp->data;
+    uint first_idx = bn/NINDIRECT;
+    addr = a[first_idx]; // Find the address of the second table. 
+    if(addr==0) // If no such table, allocate a block for the second table. 
+    {
+      addr = balloc(ip->dev); // Create a second table. 
+      if(addr==0) // Can't allocate block
+      {
+        brelse(bp);
+        return 0;
+      }
+      a[first_idx] = addr; // Record the second table's address in the first table. 
+      log_write(bp); // Write buffer back. 
+    }
+    brelse(bp); // Release the block of the first table. 
+
+    // Finally, find the target block. 
+
+    bp = bread(ip->dev, addr); // The second table's block. 
+    a = (uint *)bp->data;
+    uint second_idx = bn%NINDIRECT;
+    addr = a[second_idx];
+    if(addr==0) // If the target block does not exist, allocate a block for it. 
+    {
+      addr = balloc(ip->dev); // Allocate a block for the target block. 
+      if(addr==0) // Can't allocate block
+      {
+        brelse(bp);
+        return 0;
+      }
+      a[second_idx] = addr; // Record the target block's address in the second table. 
+      log_write(bp); // Write buffer back. 
+    }
+    brelse(bp); // Release the block of the second table. 
+    return addr;
+  }
+
   panic("bmap: out of range");
 }
 

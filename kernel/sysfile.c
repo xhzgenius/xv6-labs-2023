@@ -256,7 +256,8 @@ create(char *path, short type, short major, short minor)
   if((ip = dirlookup(dp, name, 0)) != 0){
     iunlockput(dp);
     ilock(ip);
-    if(type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE))
+    if((type == T_FILE || type == T_SYMLINK) && 
+        (ip->type == T_FILE || ip->type == T_DEVICE || ip->type == T_SYMLINK)) // Overwrite? --XHZ
       return ip;
     iunlockput(ip);
     return 0;
@@ -301,6 +302,39 @@ create(char *path, short type, short major, short minor)
   return 0;
 }
 
+/**
+ * Added by XHZ. 
+ * Usage: 
+ ```
+  uint64 sys_symlink(char *target, char *path)
+ ```
+ */
+uint64 sys_symlink(void)
+{
+  char target[MAXPATH], path[MAXPATH];
+  if(argstr(0, target, MAXPATH) < 0)
+    return -1;
+  if(argstr(1, path, MAXPATH) < 0)
+    return -1;
+  
+  begin_op(); // Don't forget this! 
+
+  // Create a symlink file. 
+  struct inode *ip = create(path, T_SYMLINK, 0, 0); // Why is major and minor 0? 
+  if(ip==0)
+  {
+    printf("sys_symlink: Can't create file called %s! \n", path);
+    return -1;
+  }
+  writei(ip, 0, (uint64)target, 0, MAXPATH);
+  iunlockput(ip); // Don't forget this! 
+
+  end_op(); // Don't forget this! 
+
+  // printf("sys_symlink: Successfully created symlink from %s to %s. \n", path, target);
+  return 0;
+}
+
 uint64
 sys_open(void)
 {
@@ -316,6 +350,8 @@ sys_open(void)
 
   begin_op();
 
+  int try_times = 0;
+  start:
   if(omode & O_CREATE){
     ip = create(path, T_FILE, 0, 0);
     if(ip == 0){
@@ -333,6 +369,26 @@ sys_open(void)
       end_op();
       return -1;
     }
+  }
+
+  // Found the existing file. 
+  // printf("sys_open: Found file %s, type=%d\n", path, ip->type);
+
+  // Need to handle symlink files and O_NOFOLLOW mode. 
+  // Judge whether this is a symlink. 
+  if(ip->type==T_SYMLINK && !(omode&O_NOFOLLOW))
+  {
+    // printf("sys_open: Try to open symlink %s. \n", path);
+    try_times += 1;
+    if(try_times>10)
+    {
+      iunlockput(ip);
+      end_op();
+      return -1;
+    }
+    readi(ip, 0, (uint64)path, 0, MAXPATH);
+    iunlockput(ip); // Remember to release the symlink file!!! 
+    goto start;
   }
 
   if(ip->type == T_DEVICE && (ip->major < 0 || ip->major >= NDEV)){

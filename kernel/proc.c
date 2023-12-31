@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
 
 struct cpu cpus[NCPU];
 
@@ -124,6 +125,14 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+
+  // Initialize the vma array and the currently available VMA top address. 
+  for(int i = 0;i<VMA_MAX;i++)
+  {
+     p->vma_array[i].valid = 0;
+     p->vma_array[i].refcnt = 0;
+  }
+  p->vma_top_addr = MAXVA-2*PGSIZE;
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -299,6 +308,18 @@ fork(void)
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
+  // Added by XHZ
+  // Copy the struct vma array. 
+  np->vma_top_addr = p->vma_top_addr;
+  for(int i = 0;i<VMA_MAX;i++)
+  {
+    if(p->vma_array[i].valid)
+    {
+      filedup(p->vma_array[i].f);
+      memmove(&np->vma_array[i], &p->vma_array[i], sizeof(struct vma));
+    }
+  }
+
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
@@ -347,6 +368,25 @@ void
 exit(int status)
 {
   struct proc *p = myproc();
+
+  // Release the mapped files in the virtual memory. 
+  for(int i = 0;i<VMA_MAX;i++)
+  {
+    if(p->vma_array[i].valid)
+    {
+      struct vma* vp = &p->vma_array[i];
+      for(uint64 addr = vp->addr;addr<vp->addr+vp->len;addr+=PGSIZE)
+      {
+        if(walkaddr(p->pagetable, addr) != 0)
+        {
+          if(vp->flags==MAP_SHARED) filewrite(vp->f, addr, PGSIZE);
+          uvmunmap(p->pagetable, addr, 1, 1);
+        }
+      }
+      fileclose(p->vma_array[i].f);
+      p->vma_array[i].valid = 0;
+    }
+  }
 
   if(p == initproc)
     panic("init exiting");

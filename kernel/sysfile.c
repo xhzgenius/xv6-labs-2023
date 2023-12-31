@@ -503,3 +503,90 @@ sys_pipe(void)
   }
   return 0;
 }
+
+// Added by XHZ. Should mmap() and munmap() be added here? 
+uint64 sys_mmap(void)
+{
+  uint64 addr;
+  int len, prot, flags, fd, off;
+  argaddr(0, &addr);
+  argint(1, &len);
+  argint(2, &prot);
+  argint(3, &flags);
+  argint(4, &fd);
+  argint(5, &off);
+
+  struct proc* p = myproc();
+  struct file* f = p->ofile[fd];
+  
+  // Check whether this operation is legal
+  if((flags==MAP_SHARED && f->writable==0 && (prot&PROT_WRITE))) return -1;
+
+  // Find an empty VMA struct. 
+  int idx = 0;
+  for(;idx<VMA_MAX;idx++)
+    if(p->vma_array[idx].valid==0)
+      break;
+  if(idx==VMA_MAX)
+    panic("All VMA struct is full!");
+  // printf("sys_mmap: Find available VMA struct, idx = %d\n", idx);
+  
+  // Fill this VMA struct.
+  struct vma* vp = &p->vma_array[idx];
+  vp->valid = 1;
+  vp->len = len;
+  vp->flags = flags;
+  vp->off = off;
+  vp->prot = prot;
+  vp->f = f;
+  filedup(f); // This file's refcnt += 1. 
+  p->vma_top_addr-=len;
+  vp->addr = p->vma_top_addr; // The usable user virtual address. 
+  // printf("sys_mmap: Successfully mapped a file, with addr=%p, len=%x\n", vp->addr, vp->len);
+  return vp->addr;
+}
+
+uint64 sys_munmap(void)
+{
+  uint64 addr;
+  int len;
+  argaddr(0, &addr);
+  argint(1, &len);
+  struct proc* p = myproc();
+
+  struct vma* vp = 0;
+  // Find the VMA struct that this file belongs to. 
+  for(struct vma *now = p->vma_array;now<p->vma_array+VMA_MAX;now++)
+  {
+    // printf("usertrap: VMA, addr=%p, len=%x, valid=%d\n", now->addr, now->len, now->valid);
+    if(now->addr<=addr && addr<now->addr+now->len 
+        && now->valid)
+    {
+      vp = now;
+      break;
+    }
+  }
+
+  if(vp)
+  {
+    if( walkaddr( p->pagetable , addr ) != 0)
+    {
+      // Write back and unmap. 
+      if(vp->flags==MAP_SHARED) filewrite(vp->f, addr, len);
+      uvmunmap(p->pagetable, addr, len/PGSIZE, 1);
+      return 0;
+    }
+    // Update the file's refcnt. 
+    vp->refcnt -= 1;
+    if(vp->refcnt) // set the vma struct to invalid. 
+    {
+      fileclose(vp->f);
+      vp->valid = 0;
+    }
+    return 0;
+  }
+  else
+  {
+    panic("Cannot find a vma struct representing this file!");
+  }
+}

@@ -26,6 +26,9 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+// Added by XHZ
+char *mmap(void *, size_t, int, int, int, off_t);
+int munmap(void *, size_t);
 #ifdef LAB_NET
 int connect(uint32, uint16, uint16);
 #endif
